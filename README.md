@@ -49,7 +49,7 @@ data room (инвойсы,     ─┘        (LLM)                  (LLM)       
 │   └── ml_system_design_doc.md   # дизайн-документ ML-системы
 ├── src/
 │   └── dd_verifier/              # код пайплайна (появится в следующих ДЗ)
-├── .github/workflows/lint.yml    # CI: pre-commit на каждый PR
+├── .github/workflows/lint.yml    # CI: pre-commit на каждый пуш
 ├── .pre-commit-config.yaml       # хуки: ruff, базовые проверки, uv-lock, nbstripout
 ├── pyproject.toml                # метаданные, зависимости, настройки ruff
 ├── uv.lock                       # зафиксированные версии зависимостей

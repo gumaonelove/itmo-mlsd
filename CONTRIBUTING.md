@@ -16,7 +16,7 @@ uv run pre-commit install   # поставить git-хук, который за
 | [ruff](https://docs.astral.sh/ruff/) `check` | линтер: pycodestyle, pyflakes, isort, bugbear, pyupgrade, naming и др. | `pyproject.toml` → `[tool.ruff.lint]` |
 | [ruff](https://docs.astral.sh/ruff/) `format` | форматтер, совместимый с black | `pyproject.toml` → `[tool.ruff.format]` |
 | [pre-commit](https://pre-commit.com/) | запускает ruff и базовые проверки перед коммитом | `.pre-commit-config.yaml` |
-| GitHub Actions | тот же pre-commit в CI на каждый PR | `.github/workflows/lint.yml` |
+| GitHub Actions | тот же pre-commit в CI на каждый пуш в любую ветку | `.github/workflows/lint.yml` |
 
 Ручной запуск:
 

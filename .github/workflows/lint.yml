@@ -1,9 +1,10 @@
 name: lint
 
+# Запускается на пуш в любую ветку (hw_n в том числе) — статус виден и в PR.
+# workflow_dispatch даёт кнопку ручного запуска во вкладке Actions.
 on:
   push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   pre-commit:
