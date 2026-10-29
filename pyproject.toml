@@ -11,7 +11,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "pre-commit>=4.0",
-    "ruff>=0.17",
+    "ruff==0.17.3",  # держим в синхроне с rev хука в .pre-commit-config.yaml
 ]
 
 [build-system]
@@ -28,7 +28,6 @@ packages = ["src/dd_verifier"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
-extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = [

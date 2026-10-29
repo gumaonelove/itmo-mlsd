@@ -36,7 +36,7 @@ uv run pre-commit run --all-files   # все хуки по всем файлам
 - `uv-lock`: `uv.lock` синхронизирован с `pyproject.toml`;
 - `nbstripout`: из ноутбуков удаляются выводы ячеек.
 
-Обновить версии хуков: `uv run pre-commit autoupdate`.
+Обновить версии хуков: `uv run pre-commit autoupdate`. Версия ruff в dev-группе `pyproject.toml` зафиксирована той же, что `rev` хука ruff: после autoupdate обнови её и выполни `uv lock`.
 
 ## Git-процесс
 
