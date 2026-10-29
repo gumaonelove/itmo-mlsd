@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Окружения
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Кэши инструментов
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Данные, модели, артефакты экспериментов — не храним в git
+data/raw/
+data/processed/
+data/interim/
+models/
+outputs/
+mlruns/
+*.parquet
+*.duckdb
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
