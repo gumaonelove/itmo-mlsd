@@ -1,0 +1,22 @@
+term,group,ontology_metric,n_documents,n_documents_sic737x,top_sic,top_sic_documents,sic_other_documents,forms,filed,queried_on
+annual recurring revenue,ARR / MRR,arr,832,386,7372,319,4,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+monthly recurring revenue,ARR / MRR,mrr,253,185,7372,129,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+annualized run-rate,ARR / MRR,arr (run-rate),78,17,3841,12,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+net revenue retention,NRR,nrr,283,200,7372,116,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+net dollar retention,NRR,nrr,199,122,7372,77,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+dollar-based net retention rate,NRR,nrr,186,155,7372,135,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+dollar-based net expansion rate,NRR,nrr,41,32,7372,29,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+net retention rate,NRR,nrr,258,223,7372,184,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+gross revenue retention,GRR,grr,29,29,7372,21,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+gross dollar retention,GRR,grr,40,25,7372,14,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+gross retention rate,GRR,grr,81,76,7372,65,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+logo churn,Churn,logo_churn,15,15,7372,15,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+customer churn,Churn,logo_churn,318,198,7372,150,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+logo retention,Churn,logo_churn,10,5,7372,5,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+average contract value,ACV,acv,58,21,7370,13,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+annual contract value,ACV,acv,169,126,7372,107,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+ten largest customers,Концентрация,top10_concentration,134,23,3845,18,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+CAC payback,вне онтологии,cac_payback,12,8,7372,8,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+customer acquisition cost,вне онтологии,cac_payback,469,120,7372,83,35,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+lifetime value,вне онтологии,ltv_to_cac,1200,321,7372,195,216,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
+burn multiple,вне онтологии,burn_multiple,0,0,,0,0,"S-1,424B4",2019-01-01..2025-12-31,2026-11-04
