@@ -1,0 +1,348 @@
+# Конфиг генератора синтетического data room (P2 дизайн-документа).
+# Запуск: uv run python -m dd_verifier.synth --config configs/synth.yaml --out data/synthetic
+#
+# 15 компаний: Pantrio + 4 = dev, 10 = holdout. Параметры holdout здесь есть, но сгенерированные
+# holdout-компании во время разработки не открываются (EDA читает только dev и holdout_summary.json).
+# Случаи каталога (configs/discrepancy_catalog.yaml) распределяются по компаниям автоматически
+# (assignment_seed): каждый id ≥ coverage_min раз в сплите; у Pantrio список задан явно.
+
+generator_version: "0.1.0"
+end_month: "2025-12"          # последний закрытый месяц истории; документы датированы январём 2026
+assignment_seed: 20251231
+coverage_min: {dev: 1, holdout: 2}
+cases_per_company: {dev: [8, 10], holdout: [8, 11]}
+claims_per_company: [15, 45]
+
+# Шум «грязной» выгрузки. Откалиброван по UCI Online Retail II
+# (reports/eda/02_billing_proxy.md, раздел 12) с пересчётом с B2C-ритейла на B2B SaaS;
+# обоснование каждого значения — data/README.md, раздел 1.7. Меняется только этот блок.
+noise:
+  duplicate_invoice_rate: 0.005          # точные дубли строк; ритейл 1,13% строк → SaaS 0,5% (0,2–1,5%)
+  missing_customer_id_rate: 0.002        # пустой customer_id; C предлагал 1%, но ≥0,3% меняет эталон (EDA 03)
+  void_reissue_rate: 0.01                # void + перевыставленный; ритейл 0,9% тех. строк → 1% (0,5–2%)
+  erroneous_invoice_credit_rate: 0.01    # инвойс + ПОЛНАЯ кредит-нота: 3% кредит-нот × 1/3 полных
+  late_issue_rate: 0.02                  # выставлен на 1–2 мес. позже; не измерено, верх диапазона 0,5–2%
+  late_issue_max_months: 2
+  customer_name_case_rate: 0.05          # другое написание имени в справочнике (регистр, Inc./LLC)
+  customer_duplicate_record_rate: 0.01   # запись-дубль клиента с вариантом имени, без инвойсов
+
+defaults:
+  months: 36
+  price_sigma: 0.35
+  annual_prepay_share: 0.15
+  reseller_share: 0.0
+  reseller_fee_rate: 0.2
+  currency_mix: {USD: 0.85, EUR: 0.10, GBP: 0.05}
+  impl_fee_months: 1.0        # платёж за внедрение в месяцах подписки
+  onboarding_months: 2        # на сколько месяцев распределён платёж за внедрение
+  one_time_prob: 0.01         # вероятность разового платежа (обучение) у клиента в месяц
+  pilot_rate: 0.012           # новые бесплатные пилоты в месяц на одного активного клиента
+  expansion: {monthly_prob: 0.03, size: 0.2, contraction_prob: 0.01, annual_uplift: 0.06}
+  press_releases: 2
+  plain_claims: [8, 12]       # число корректных утверждений без случаев каталога
+  family_rate: 0.40           # доля утверждений, повторённых в пресс-релизе (семейство)
+  doc_name_variant_rate: 0.6  # доля упоминаний клиентов с другим написанием имени
+
+companies:
+  # ---------------------------------------------------------------- dev
+  - id: pantrio
+    name: Pantrio
+    split: dev
+    seed: 1101
+    archetype: fast_growth
+    industry_key: restaurant
+    category: inventory management
+    noun: restaurant groups
+    smb_label: single-location restaurant
+    city: Austin
+    invoice_prefix: PAN
+    months: 36
+    active_path: {start: 12, "2024-12": 51, end: 127}
+    segment_mix: {SMB: 0.55, MidMarket: 0.35, Enterprise: 0.10}
+    churn: {total: 0.045, core: 0.016}
+    price_usd: {SMB: 450, MidMarket: 1400, Enterprise: 4200}
+    currency_mix: {USD: 0.80, EUR: 0.12, GBP: 0.08}
+    impl_fee_months: 1.5
+    onboarding_months: 3
+    one_time_prob: 0.004
+    # Калибровка под пример дизайн-документа (2.2.4): стандартный ARR 0.70M → 1.82M (×2.6),
+    # с платежами за внедрение 0.75M → 2.25M (×3.0)
+    calibration: {arr_start_month: "2024-12", arr_start: 700000, arr_end: 1820000,
+                  arr_company_start: 750000, arr_company_end: 2250000}
+    cases: [D01, H01, D07, D06, D10, H02, H03, N01, U01, F01]
+
+  - id: tallybird
+    name: Tallybird
+    split: dev
+    seed: 1102
+    archetype: multi_currency_slow
+    industry_key: accounting
+    category: practice management
+    noun: accounting firms
+    smb_label: solo-practitioner
+    city: Dublin
+    invoice_prefix: TLB
+    months: 48
+    active_path: {start: 90, end: 380}
+    segment_mix: {SMB: 0.70, MidMarket: 0.25, Enterprise: 0.05}
+    churn: {total: 0.022, core: 0.009}
+    price_usd: {SMB: 180, MidMarket: 650, Enterprise: 2200}
+    currency_mix: {USD: 0.30, EUR: 0.45, GBP: 0.25}
+    reseller_share: 0.10
+    arr_end: 1900000
+
+  - id: routelane
+    name: Routelane
+    split: dev
+    seed: 1103
+    archetype: reseller_heavy
+    industry_key: logistics
+    category: dispatch and route planning
+    noun: logistics teams
+    smb_label: owner-operator
+    city: Chicago
+    invoice_prefix: RTL
+    months: 30
+    active_path: {start: 40, end: 140}
+    segment_mix: {SMB: 0.40, MidMarket: 0.45, Enterprise: 0.15}
+    churn: {total: 0.018, core: 0.008}
+    price_usd: {SMB: 400, MidMarket: 1300, Enterprise: 3800}
+    reseller_share: 0.45
+    reseller_fee_rate: 0.25
+    arr_end: 2300000
+
+  - id: clinicore
+    name: Clinicore
+    split: dev
+    seed: 1104
+    archetype: enterprise_concentrated
+    industry_key: healthcare
+    category: patient scheduling
+    noun: clinic networks
+    smb_label: single-site clinic
+    city: Boston
+    invoice_prefix: CLC
+    months: 40
+    active_path: {start: 18, end: 60}
+    segment_mix: {SMB: 0.30, MidMarket: 0.40, Enterprise: 0.30}
+    churn: {total: 0.014, core: 0.007}
+    price_usd: {SMB: 500, MidMarket: 2500, Enterprise: 12000}
+    price_sigma: 0.7
+    annual_prepay_share: 0.40
+    arr_end: 3600000
+
+  - id: brewbase
+    name: Brewbase
+    split: dev
+    seed: 1105
+    archetype: high_churn_smb
+    industry_key: brewery
+    category: production planning
+    noun: craft breweries
+    smb_label: nano-brewery
+    city: Portland
+    invoice_prefix: BRW
+    months: 26
+    active_path: {start: 90, end: 220}
+    segment_mix: {SMB: 0.75, MidMarket: 0.22, Enterprise: 0.03}
+    churn: {total: 0.035, core: 0.014}
+    price_usd: {SMB: 220, MidMarket: 700, Enterprise: 2000}
+    press_releases: 1
+    arr_end: 950000
+
+  # ---------------------------------------------------------------- holdout
+  - id: fernwave
+    name: Fernwave
+    split: holdout
+    seed: 2201
+    archetype: fast_growth
+    industry_key: retail
+    category: inventory planning
+    noun: independent retailers
+    smb_label: single-store
+    city: Denver
+    invoice_prefix: FRN
+    months: 30
+    active_path: {start: 30, end: 210}
+    segment_mix: {SMB: 0.50, MidMarket: 0.40, Enterprise: 0.10}
+    churn: {total: 0.020, core: 0.008}
+    price_usd: {SMB: 300, MidMarket: 1100, Enterprise: 3500}
+    arr_end: 2400000
+
+  - id: quarrylab
+    name: Quarrylab
+    split: holdout
+    seed: 2202
+    archetype: slow_growth
+    industry_key: construction
+    category: project costing
+    noun: construction firms
+    smb_label: sole-trader
+    city: Leeds
+    invoice_prefix: QRY
+    months: 48
+    active_path: {start: 120, end: 165}
+    segment_mix: {SMB: 0.45, MidMarket: 0.45, Enterprise: 0.10}
+    churn: {total: 0.014, core: 0.006}
+    price_usd: {SMB: 350, MidMarket: 1200, Enterprise: 3600}
+    currency_mix: {USD: 0.30, EUR: 0.10, GBP: 0.60}
+    arr_end: 2100000
+
+  - id: bidnest
+    name: Bidnest
+    split: holdout
+    seed: 2203
+    archetype: reseller_heavy
+    industry_key: logistics
+    category: freight procurement
+    noun: shippers
+    smb_label: small-volume
+    city: Rotterdam
+    invoice_prefix: BDN
+    months: 36
+    active_path: {start: 35, end: 150}
+    segment_mix: {SMB: 0.35, MidMarket: 0.50, Enterprise: 0.15}
+    churn: {total: 0.016, core: 0.007}
+    price_usd: {SMB: 450, MidMarket: 1500, Enterprise: 4000}
+    currency_mix: {USD: 0.40, EUR: 0.50, GBP: 0.10}
+    reseller_share: 0.50
+    reseller_fee_rate: 0.30
+    press_releases: 3
+    arr_end: 2800000
+
+  - id: mintcart
+    name: Mintcart
+    split: holdout
+    seed: 2204
+    archetype: multi_currency
+    industry_key: retail
+    category: e-commerce operations
+    noun: online merchants
+    smb_label: micro-merchant
+    city: Berlin
+    invoice_prefix: MNT
+    months: 42
+    active_path: {start: 60, end: 260}
+    segment_mix: {SMB: 0.60, MidMarket: 0.32, Enterprise: 0.08}
+    churn: {total: 0.025, core: 0.010}
+    price_usd: {SMB: 250, MidMarket: 900, Enterprise: 3000}
+    currency_mix: {USD: 0.20, EUR: 0.50, GBP: 0.30}
+    reseller_share: 0.40
+    arr_end: 2200000
+
+  - id: orbitask
+    name: Orbitask
+    split: holdout
+    seed: 2205
+    archetype: enterprise_concentrated
+    industry_key: education
+    category: learning management
+    noun: school districts
+    smb_label: single-school
+    city: Toronto
+    invoice_prefix: ORB
+    months: 36
+    active_path: {start: 15, end: 42}
+    segment_mix: {SMB: 0.20, MidMarket: 0.45, Enterprise: 0.35}
+    churn: {total: 0.014, core: 0.006}
+    price_usd: {SMB: 600, MidMarket: 3000, Enterprise: 15000}
+    price_sigma: 0.8
+    annual_prepay_share: 0.50
+    press_releases: 1
+    arr_end: 3500000
+
+  - id: parcelio
+    name: Parcelio
+    split: holdout
+    seed: 2206
+    archetype: seasonal
+    industry_key: logistics
+    category: parcel tracking
+    noun: e-commerce brands
+    smb_label: single-founder
+    city: Lisbon
+    invoice_prefix: PRC
+    months: 30
+    active_path: {start: 50, end: 180}
+    segment_mix: {SMB: 0.55, MidMarket: 0.38, Enterprise: 0.07}
+    churn: {total: 0.028, core: 0.012}
+    price_usd: {SMB: 280, MidMarket: 950, Enterprise: 3200}
+    currency_mix: {USD: 0.30, EUR: 0.60, GBP: 0.10}
+    arr_end: 1600000
+
+  - id: snowmetric
+    name: Snowmetric
+    split: holdout
+    seed: 2207
+    archetype: high_churn_smb
+    industry_key: healthcare
+    category: practice analytics
+    noun: dental practices
+    smb_label: solo
+    city: Phoenix
+    invoice_prefix: SNW
+    months: 28
+    active_path: {start: 80, end: 230}
+    segment_mix: {SMB: 0.70, MidMarket: 0.26, Enterprise: 0.04}
+    churn: {total: 0.040, core: 0.015}
+    price_usd: {SMB: 190, MidMarket: 600, Enterprise: 1800}
+    arr_end: 1000000
+
+  - id: tidefleet
+    name: Tidefleet
+    split: holdout
+    seed: 2208
+    archetype: flat
+    industry_key: logistics
+    category: fleet maintenance
+    noun: fleet operators
+    smb_label: single-vessel
+    city: Hamburg
+    invoice_prefix: TDF
+    months: 36
+    active_path: {start: 130, end: 150}
+    segment_mix: {SMB: 0.40, MidMarket: 0.45, Enterprise: 0.15}
+    churn: {total: 0.016, core: 0.007}
+    price_usd: {SMB: 500, MidMarket: 1600, Enterprise: 4500}
+    currency_mix: {USD: 0.35, EUR: 0.50, GBP: 0.15}
+    arr_end: 2900000
+
+  - id: verdance
+    name: Verdance
+    split: holdout
+    seed: 2209
+    archetype: fast_growth_channel
+    industry_key: construction
+    category: site safety compliance
+    noun: general contractors
+    smb_label: small-crew
+    city: Melbourne
+    invoice_prefix: VRD
+    months: 24
+    active_path: {start: 20, end: 160}
+    segment_mix: {SMB: 0.45, MidMarket: 0.42, Enterprise: 0.13}
+    churn: {total: 0.022, core: 0.009}
+    price_usd: {SMB: 380, MidMarket: 1250, Enterprise: 4200}
+    currency_mix: {USD: 0.70, EUR: 0.10, GBP: 0.20}
+    reseller_share: 0.40
+    reseller_fee_rate: 0.25
+    arr_end: 2400000
+
+  - id: yardsmith
+    name: Yardsmith
+    split: holdout
+    seed: 2210
+    archetype: smb_volume
+    industry_key: retail
+    category: point-of-sale
+    noun: garden centers
+    smb_label: single-store
+    city: Atlanta
+    invoice_prefix: YRD
+    months: 40
+    active_path: {start: 150, end: 500}
+    segment_mix: {SMB: 0.82, MidMarket: 0.16, Enterprise: 0.02}
+    churn: {total: 0.030, core: 0.011}
+    price_usd: {SMB: 120, MidMarket: 450, Enterprise: 1500}
+    press_releases: 3
+    arr_end: 1200000
