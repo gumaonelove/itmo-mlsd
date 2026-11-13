@@ -1,0 +1,43 @@
+# Установка: uv sync && uv run pre-commit install
+# Ручной прогон по всем файлам: uv run pre-commit run --all-files
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
+
+repos:
+  # Базовая гигиена репозитория
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]  # данные и модели не коммитим
+      - id: detect-private-key  # ключи API к LLM не должны попасть в репозиторий
+
+  # Ruff: линтер (с автоисправлением) и форматтер
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Lock-файл зависимостей всегда синхронизирован с pyproject.toml
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.6
+    hooks:
+      - id: uv-lock
+
+  # Чистим выводы ноутбуков (EDA), чтобы не раздувать диффы и не утекали данные
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
