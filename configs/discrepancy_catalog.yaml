@@ -1,0 +1,295 @@
+# Каталог расхождений, которые генератор синтетики «сажает» в data room и документы (P2).
+# Каталог зафиксирован до разработки пайплайна; идентификаторы не меняются.
+#
+# Поля:
+#   mechanism        — как компания завышает (или почему утверждение не проверить);
+#   affected_metrics — метрики онтологии, на которых встречается случай;
+#   how_generated    — что генератор делает в данных (data) и в документах (documents, memo);
+#   expected_verdict — основной эталонный вердикт;
+#   allowed_verdicts — какие вердикты допустимы (эталон всегда считается библиотекой метрик
+#                      и правилами допусков P5; генератор падает, если вердикт вне списка);
+#   detection_hint   — какой вариант метрики / второй расчёт выявляет случай;
+#   difficulty       — easy / medium / hard для системы.
+
+version: 1
+
+cases:
+  - id: D01
+    slug: one_time_in_arr
+    name_ru: Разовые платежи в ARR/MRR
+    mechanism: >-
+      Платежи за внедрение и обучение (implementation, one_time) аннуализированы и включены в ARR/MRR,
+      поэтому ARR и его рост выглядят больше подписочной выручки.
+    affected_metrics: [arr, arr_growth, mrr, acv]
+    how_generated:
+      data: >-
+        У компании есть инвойсы payment_type = implementation (распределены по 1–3 месяцам онбординга) и one_time;
+        их масштаб калибруется так, чтобы вариант incl_one_time был выше стандарта на 8–20% (Pantrio: ARR 0,75 → 2,25 млн $).
+      documents: Утверждение в деке/пресс-релизе равно значению варианта incl_one_time (с естественным округлением).
+      memo: Определение раскрыто («ARR includes annualized implementation fees») или дано намёком («total monthly billings × 12»).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED]
+    detection_hint: Пересчитать стандартный ARR только по subscription и сравнить с вариантом incl_one_time; найти определение в меморандуме CFO.
+    difficulty: medium
+
+  - id: D02
+    slug: peak_month_annualized
+    name_ru: Аннуализирован пиковый месяц
+    mechanism: ARR посчитан как максимальный месячный MRR за год × 12, а не как MRR последнего месяца.
+    affected_metrics: [arr, acv]
+    how_generated:
+      data: >-
+        За 3–7 месяцев до конца истории части клиентов выставляется разовая месячная подписка-«сезонная надстройка»
+        (subscription на один месяц), которая создаёт пик MRR на 8–20% выше последнего месяца.
+      documents: Утверждение «ARR» равно пиковому MRR × 12.
+      memo: Не раскрыто (в меморандуме ARR описан общими словами).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED]
+    detection_hint: Сравнить ARR на конец периода с вариантом peak_month; найти месяц-пик в помесячном MRR.
+    difficulty: hard
+
+  - id: D03
+    slug: pilots_as_customers
+    name_ru: Пилоты и незапущенные контракты посчитаны клиентами
+    mechanism: В «число клиентов» включены бесплатные пилоты и подписанные, но не запущенные контракты.
+    affected_metrics: [active_customers]
+    how_generated:
+      data: >-
+        В справочник добавляются пилоты (is_pilot = true, без go_live и без инвойсов) и подписанные клиенты без go_live,
+        так что вариант signed_incl_pilots на 8–20% больше стандартного числа активных платящих клиентов.
+      documents: Утверждение о числе клиентов равно значению signed_incl_pilots.
+      memo: Не раскрыто или намёк («customers = signed accounts»).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED]
+    detection_hint: Считать клиентов по go-live, оттоку и положительному подписочному MRR; сравнить с вариантом signed_incl_pilots.
+    difficulty: medium
+
+  - id: D04
+    slug: cherry_picked_base
+    name_ru: Удобная база сравнения
+    mechanism: Рост посчитан от «провального» месяца внутри окна, а подан как рост за весь период.
+    affected_metrics: [arr_growth]
+    how_generated:
+      data: >-
+        В 1–3-й месяц окна большой доле клиентов выставляются кредит-ноты за сбой сервиса (SLA credits),
+        поэтому MRR этого месяца проседает; рост от провала на 8–20% выше роста за период.
+      documents: Утверждение о росте за период равно варианту trough_base.
+      memo: Не раскрыто.
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED]
+    detection_hint: Пересчитать рост от начала заявленного периода; посмотреть помесячный ARR на провалы внутри окна (вариант trough_base).
+    difficulty: hard
+
+  - id: D05
+    slug: gross_vs_net
+    name_ru: Gross вместо net по реселлерам
+    mechanism: Продажи через реселлеров показаны по полной цене для конечного клиента, хотя компании остаётся только net.
+    affected_metrics: [arr, revenue, mrr, acv]
+    how_generated:
+      data: >-
+        Часть клиентов приходит через channel = reseller; в инвойсах amount — gross, reseller_fee — доля партнёра.
+        Ставка комиссии калибруется так, чтобы gross-вариант был выше net на 8–20%.
+      documents: Утверждение об ARR / выручке равно варианту gross_channel.
+      memo: Раскрыто («revenue from reseller partners is reported at the gross amount billed to end customers»).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED]
+    detection_hint: Вычесть reseller_fee (вариант gross_channel против стандарта); найти политику учёта в меморандуме.
+    difficulty: medium
+
+  - id: D06
+    slug: nrr_survivors
+    name_ru: NRR без ушедших клиентов
+    mechanism: NRR посчитан только по клиентам, дожившим до конца периода, поэтому отток не снижает метрику.
+    affected_metrics: [nrr]
+    how_generated:
+      data: Обычный отток; в cohorts.xlsx когортная таблица построена «по выжившим» (лист notes содержит определение).
+      documents: Утверждение об NRR равно варианту survivors_only.
+      memo: Раскрыто или намёк («NRR is measured on retained customers»).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED, CONTRADICTED]
+    detection_hint: Пересчитать NRR на всей когорте, активной 12 месяцев назад, ушедшие дают 0 (вариант survivors_only против стандарта).
+    difficulty: medium
+
+  - id: D07
+    slug: churn_excl_segments
+    name_ru: Churn без пилотов и малых клиентов
+    mechanism: Logo churn посчитан только по «основным» клиентам; самый отточный сегмент (SMB) и пилоты исключены.
+    affected_metrics: [logo_churn]
+    how_generated:
+      data: Отток в сегменте SMB в 3–6 раз выше, чем в остальных; общий churn выше «основного» минимум на 0,6 п.п.
+      documents: Утверждение о churn равно варианту excl_pilots_and_small (часто с квантификатором «below / <»).
+      memo: Раскрыто («logo churn excludes pilots and Starter-plan accounts»).
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED, CONTRADICTED]
+    detection_hint: Пересчитать churn по всем активным платящим клиентам; сравнить с вариантом excl_pilots_and_small; разница больше верхнего порога → CONTRADICTED.
+    difficulty: medium
+
+  - id: D08
+    slug: wrong_number
+    name_ru: Число не сходится с данными
+    mechanism: Опечатка или устаревший внутренний расчёт; ни один вариант определения не даёт заявленное число.
+    affected_metrics: [arr, mrr, revenue, active_customers, acv]
+    how_generated:
+      data: Без изменений.
+      documents: Заявленное значение = факт × 1,3–1,5 (завышение сверх верхнего порога) или факт × 0,75–0,88 (занижение).
+      memo: Не содержит определения, объясняющего число.
+    expected_verdict: CONTRADICTED
+    allowed_verdicts: [CONTRADICTED]
+    detection_hint: Ни стандарт, ни варианты компании не попадают в допуск.
+    difficulty: easy
+
+  - id: D09
+    slug: stale_period
+    name_ru: Устаревшее значение подано как текущее
+    mechanism: Значение, верное на прошлую дату (обычно 6–12 месяцев назад, когда метрика была лучше), подано как текущее.
+    affected_metrics: [nrr, grr, logo_churn, arr_growth, acv, active_customers, top10_concentration]
+    how_generated:
+      data: В последние 3 месяца часть клиентов старой когорты получает скидки кредит-нотами (plant_recent_downgrade), поэтому NRR/GRR и ACV на конец периода ниже, чем 6–12 месяцев назад; генератор берёт только устаревшее значение в пользу компании.
+      documents: Заявлено прошлое значение с формулировкой «today / currently / as of December 2025».
+      memo: Не раскрыто.
+    expected_verdict: EXAGGERATED
+    allowed_verdicts: [EXAGGERATED, CONTRADICTED]
+    detection_hint: Пересчитать на дату документа и сравнить с помесячным рядом; совпадение с прошлым месяцем указывает на устаревшее число.
+    difficulty: medium
+
+  - id: D10
+    slug: customer_logo_not_found
+    name_ru: Клиент не найден или уже ушёл
+    mechanism: В деке или пресс-релизе упомянут клиент, которого нет в справочнике или который уже ушёл.
+    affected_metrics: []
+    how_generated:
+      data: Для «ушедшего» варианта — реальный клиент со churn_date до даты документа; для «несуществующего» — имя, которого нет в справочнике.
+      documents: Предложение с упоминанием клиента (логотип, кейс, цитата).
+      memo: —
+    expected_verdict: CONTRADICTED
+    allowed_verdicts: [CONTRADICTED]
+    detection_hint: Нормализовать имя (регистр, Inc./LLC) и найти в справочнике; проверить статус на дату документа.
+    difficulty: easy
+
+  - id: D11
+    slug: opposite_direction
+    name_ru: Заявлен рост, по данным снижение
+    mechanism: Заявлен рост метрики за окно, в котором по данным метрика снизилась.
+    affected_metrics: [arr_growth]
+    how_generated:
+      data: >-
+        В окне (квартал/полугодие 2025) помесячно оплачиваемые клиенты сезонно сокращают подписку,
+        так что ARR на конец окна на 4–10% ниже, чем на начало.
+      documents: «ARR grew N% in Q3 2025» при фактическом множителе < 1.
+      memo: Не раскрыто.
+    expected_verdict: CONTRADICTED
+    allowed_verdicts: [CONTRADICTED]
+    detection_hint: Множитель роста по данным < 1 при заявленном > 1 — противоположное направление.
+    difficulty: easy
+
+  - id: H01
+    slug: rounding_within_tolerance
+    name_ru: Округление в пределах допуска
+    mechanism: Нет расхождения — значение округлено «в свою пользу», но в пределах нижнего порога («120+» при 127).
+    affected_metrics: [arr, mrr, revenue, active_customers, acv]
+    how_generated:
+      data: Без изменений.
+      documents: Заявлено «красивое» число в пределах +5% от факта или «N+» с N ≤ факта.
+      memo: —
+    expected_verdict: SUPPORTED
+    allowed_verdicts: [SUPPORTED]
+    detection_hint: δ в пределах нижнего порога; не путать с завышением.
+    difficulty: medium
+
+  - id: H02
+    slug: qualifier_ok
+    name_ru: Квантификатор выполнен
+    mechanism: Нет расхождения — «more than / over / about / approximately» корректно описывают факт.
+    affected_metrics: [arr, mrr, revenue, active_customers, acv, nrr, grr, logo_churn]
+    how_generated:
+      data: Без изменений.
+      documents: «more than N» с N ≤ факта, «about N» с |δ| ≤ 4%, «below N%» для churn при факте ниже N.
+      memo: —
+    expected_verdict: SUPPORTED
+    allowed_verdicts: [SUPPORTED]
+    detection_hint: Правильно извлечь квантификатор и применить правило P5.
+    difficulty: medium
+
+  - id: H03
+    slug: paraphrase
+    name_ru: Перефразированный рост
+    mechanism: Нет расхождения — рост выражен по-другому («+160%», «2.6x», «more than doubled»).
+    affected_metrics: [arr_growth, active_customers]
+    how_generated:
+      data: Без изменений.
+      documents: Фактический множитель записан в процентах прироста, множителем или словами (doubled / more than doubled / tripled).
+      memo: —
+    expected_verdict: SUPPORTED
+    allowed_verdicts: [SUPPORTED]
+    detection_hint: Привести формулировку к множителю (P5) до сравнения.
+    difficulty: medium
+
+  - id: H04
+    slug: company_definition_equals_standard
+    name_ru: Определение компании совпадает со стандартом
+    mechanism: Нет расхождения — в меморандуме CFO метрика определена стандартно, утверждение ему соответствует.
+    affected_metrics: [arr, nrr, logo_churn, active_customers, grr]
+    how_generated:
+      data: Без изменений.
+      documents: Утверждение равно стандартному значению; в меморандуме — явное стандартное определение метрики.
+      memo: «We define ARR as MRR from active subscriptions × 12, excluding one-time and implementation fees» и т. п.
+    expected_verdict: SUPPORTED
+    allowed_verdicts: [SUPPORTED]
+    detection_hint: Найденное определение не должно автоматически означать расхождение.
+    difficulty: hard
+
+  - id: N01
+    slug: out_of_ontology_metric
+    name_ru: Метрика вне онтологии
+    mechanism: Утверждение о метрике, для которой в data room нет данных (CAC payback, LTV/CAC, gross margin, burn multiple).
+    affected_metrics: []
+    how_generated:
+      data: Нет таблиц затрат, COGS и денежного потока.
+      documents: «CAC payback of 9 months», «gross margin of 78%».
+      memo: —
+    expected_verdict: NOT_ENOUGH_DATA
+    allowed_verdicts: [NOT_ENOUGH_DATA]
+    detection_hint: Сопоставление с онтологией → метрика вне онтологии.
+    difficulty: easy
+
+  - id: N02
+    slug: missing_data
+    name_ru: Метрика из онтологии, но данных за период нет
+    mechanism: Утверждение о периоде, который не покрыт выгрузкой (история биллинга начинается позже).
+    affected_metrics: [revenue, arr, nrr, active_customers]
+    how_generated:
+      data: История инвойсов начинается позже периода утверждения (или нет базы для 12-месячной когорты).
+      documents: «Revenue in 2021 reached $X», «NRR of 118% in <первый год истории>».
+      memo: —
+    expected_verdict: NOT_ENOUGH_DATA
+    allowed_verdicts: [NOT_ENOUGH_DATA]
+    detection_hint: Библиотека проверяет покрытие периода данными и возвращает NotEnoughData.
+    difficulty: medium
+
+  - id: U01
+    slug: forecast_or_opinion
+    name_ru: Прогноз или мнение
+    mechanism: Утверждение о будущем или оценочное суждение; проверить по данным нельзя.
+    affected_metrics: []
+    how_generated:
+      data: Без изменений.
+      documents: «We expect to reach $5M ARR by the end of 2026», «the leading platform for ...».
+      memo: —
+    expected_verdict: UNVERIFIABLE
+    allowed_verdicts: [UNVERIFIABLE]
+    detection_hint: Классификация типа утверждения (forecast / opinion).
+    difficulty: easy
+
+  - id: F01
+    slug: factual_claim
+    name_ru: Фактологическое утверждение
+    mechanism: Партнёрство, награда, сертификация — проверяется вручную, вне MVP.
+    affected_metrics: []
+    how_generated:
+      data: Без изменений.
+      documents: «In 2025 we became an official integration partner of ...», «named to the ... list».
+      memo: —
+    expected_verdict: FACTUAL_OUT_OF_SCOPE
+    allowed_verdicts: [FACTUAL_OUT_OF_SCOPE]
+    detection_hint: Классификация типа утверждения → пометка для ручной проверки; не входит в 5-классовые метрики.
+    difficulty: easy

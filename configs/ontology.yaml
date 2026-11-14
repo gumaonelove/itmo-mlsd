@@ -1,0 +1,220 @@
+# Онтология метрик DD Verifier (P3, P5 дизайн-документа).
+# Идентификаторы метрик и вариантов фиксированы: на них ссылаются библиотека метрик
+# (src/dd_verifier/metrics), генератор синтетики и эталонная разметка (gold/claims.jsonl).
+#
+# Соглашения:
+# - деньги в USD; суммы инвойсов переводятся в USD по курсу месяца начала периода услуги (fx_rates.csv);
+# - месяц — строка YYYY-MM; «на дату» = на конец месяца;
+# - доли храним как дробь (0.045 = 4,5%), отклонение для долей считаем в процентных пунктах (п.п.);
+# - рост храним как множитель (×2,6; «+160%» → 2,6);
+# - инвойсы со статусом void исключаются, кредит-ноты (отрицательные суммы) вычитаются;
+# - подписочная выручка распределяется равномерно по месяцам периода услуги
+#   (годовая предоплата → 1/12 суммы в каждый месяц).
+
+version: 1
+
+# Пороги допусков по умолчанию для типа метрики (P5).
+# relative: δ = (заявлено − факт) / факт; pp: δ = (заявлено − факт) × 100 п.п.
+# |δ| ≤ lower → SUPPORTED; завышение в пользу компании между lower и upper → EXAGGERATED;
+# завышение > upper, отклонение не в пользу компании > lower, противоположное направление роста → CONTRADICTED.
+tolerance_defaults:
+  level: {mode: relative, lower: 0.05, upper: 0.25}
+  count: {mode: relative, lower: 0.05, upper: 0.25}
+  growth: {mode: relative, lower: 0.05, upper: 0.25}
+  share: {mode: pp, lower: 1.0, upper: 3.0}
+
+# Квантификаторы в формулировке утверждения.
+qualifiers:
+  exact: "число сравнивается как есть"
+  about: "«about / approximately / ~ / nearly»: выполнено при |δ| ≤ нижнего порога (для уровней ±5%)"
+  more_than: "«more than / over / N+»: выполнено, если факт ≥ N; иначе δ считается от N"
+  less_than: "«less than / under / below / <»: выполнено, если факт ≤ N; иначе δ считается от N"
+
+metrics:
+  - id: mrr
+    name_ru: Месячная регулярная выручка (MRR)
+    kind: level
+    unit: USD
+    direction: up
+    formula: "Σ (amount − reseller_fee) × usd_rate / n_months по подписочным инвойсам, признанным в месяце m"
+    standard_definition: >-
+      Только payment_type = subscription; выручка признаётся равномерно по месяцам периода услуги;
+      кредит-ноты вычитаются, void исключаются; продажи через реселлеров учитываются net (за вычетом доли партнёра).
+    company_variants:
+      - variant_id: incl_one_time
+        description: в MRR добавлены разовые платежи и платежи за внедрение (one_time, implementation), признанные в месяце
+      - variant_id: gross_channel
+        description: продажи через реселлеров учтены по gross-сумме (доля партнёра reseller_fee не вычитается)
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      invoices: [service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: arr
+    name_ru: Годовая регулярная выручка (ARR)
+    kind: level
+    unit: USD
+    direction: up
+    formula: "ARR(m) = MRR(m) × 12, m — последний месяц периода"
+    standard_definition: MRR стандартного определения на конец периода, умноженный на 12.
+    company_variants:
+      - variant_id: incl_one_time
+        description: аннуализированы и разовые платежи / платежи за внедрение (MRR варианта incl_one_time × 12)
+      - variant_id: peak_month
+        description: аннуализирован максимальный месячный MRR за последние 12 месяцев, а не последний месяц
+      - variant_id: gross_channel
+        description: MRR варианта gross_channel × 12 (реселлерские продажи по gross)
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      invoices: [service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: arr_growth
+    name_ru: Рост ARR за период (множитель)
+    kind: growth
+    unit: x
+    direction: up
+    formula: "ARR(end) / ARR(start)"
+    standard_definition: >-
+      Отношение стандартного ARR на конец периода к стандартному ARR на начало периода
+      (для «роста в 2025 году» — декабрь 2025 к декабрю 2024). Формулировки «3x», «+200%», «tripled» приводятся к множителю.
+    company_variants:
+      - variant_id: incl_one_time
+        description: оба конца периода по ARR варианта incl_one_time
+      - variant_id: peak_month
+        description: оба конца периода по ARR варианта peak_month
+      - variant_id: gross_channel
+        description: оба конца периода по ARR варианта gross_channel
+      - variant_id: trough_base
+        description: база сравнения — минимальный ARR внутри окна [start, end), а не ARR на начало периода
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      invoices: [service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: revenue
+    name_ru: Признанная выручка за период
+    kind: level
+    unit: USD
+    direction: up
+    formula: "Σ (amount − reseller_fee) × usd_rate / n_months по всем типам платежей, признанным в месяцах [start, end]"
+    standard_definition: Вся признанная выручка (подписка, разовые платежи, внедрение) за период, net, без void, за вычетом кредит-нот.
+    company_variants:
+      - variant_id: gross_channel
+        description: реселлерские продажи по gross-сумме
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      invoices: [service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: active_customers
+    name_ru: Число активных платящих клиентов
+    kind: count
+    unit: customers
+    direction: up
+    formula: "|{c : go_live_date ≤ конец m, churn_date пусто или > конец m, подписочный MRR_c(m) > 0}|"
+    standard_definition: Клиенты, которые запущены (go-live), не ушли и платят за подписку в месяце m.
+    company_variants:
+      - variant_id: signed_incl_pilots
+        description: все подписанные и не ушедшие записи справочника, включая пилоты и ещё не запущенных клиентов
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      customers: [customer_id, signed_date, go_live_date, churn_date, is_pilot]
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: logo_churn
+    name_ru: Месячный logo churn
+    kind: share
+    unit: share_per_month
+    direction: down
+    formula: "mean_m ( |ушли в месяце m| / |активны на конец m−1| ), m ∈ [start, end]"
+    standard_definition: >-
+      Для каждого месяца периода — доля активных на начало месяца клиентов, у которых churn_date приходится на этот месяц;
+      значение — среднее по месяцам периода. Учитываются все активные платящие клиенты.
+    company_variants:
+      - variant_id: excl_pilots_and_small
+        description: из знаменателя и числителя исключены пилоты (is_pilot) и малые клиенты (segment = SMB)
+    tolerance: {mode: pp, lower: 0.3, upper: 1.0}
+    required_data:
+      customers: [customer_id, segment, go_live_date, churn_date, is_pilot]
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: grr
+    name_ru: Gross revenue retention за 12 месяцев
+    kind: share
+    unit: share
+    direction: up
+    formula: "Σ_c min(MRR_c(m), MRR_c(m−12)) / Σ_c MRR_c(m−12) по когорте активных в m−12"
+    standard_definition: Удержание подписочной выручки когорты, активной 12 месяцев назад, без учёта допродаж (по клиенту не выше 100%).
+    company_variants: []
+    tolerance: {mode: pp, lower: 2.0, upper: 5.0}
+    required_data:
+      customers: [customer_id, go_live_date, churn_date]
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: nrr
+    name_ru: Net revenue retention за 12 месяцев
+    kind: share
+    unit: share
+    direction: up
+    formula: "Σ_c MRR_c(m) / Σ_c MRR_c(m−12) по когорте активных в m−12 (ушедшие дают 0)"
+    standard_definition: Подписочная выручка когорты, активной 12 месяцев назад, сейчас к её выручке тогда; допродажи учитываются, ушедшие клиенты остаются в когорте с нулём.
+    company_variants:
+      - variant_id: survivors_only
+        description: ушедшие к концу периода клиенты исключены из когорты (и из числителя, и из знаменателя)
+    tolerance: {mode: pp, lower: 2.0, upper: 5.0}
+    required_data:
+      customers: [customer_id, go_live_date, churn_date]
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: acv
+    name_ru: Средняя годовая стоимость контракта (ACV)
+    kind: level
+    unit: USD
+    direction: up
+    formula: "ARR(m) / active_customers(m)"
+    standard_definition: Стандартный ARR, делённый на число активных платящих клиентов на ту же дату.
+    company_variants:
+      - variant_id: incl_one_time
+        description: ARR варианта incl_one_time / активные клиенты
+      - variant_id: peak_month
+        description: ARR варианта peak_month / активные клиенты
+      - variant_id: gross_channel
+        description: ARR варианта gross_channel / активные клиенты
+    tolerance: {mode: relative, lower: 0.05, upper: 0.25}
+    required_data:
+      customers: [customer_id, go_live_date, churn_date]
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+  - id: top10_concentration
+    name_ru: Доля выручки топ-10 клиентов за 12 месяцев
+    kind: share
+    unit: share
+    direction: down
+    formula: "Σ выручки 10 крупнейших клиентов за [m−11, m] / вся выручка за [m−11, m]"
+    standard_definition: Концентрация признанной выручки (все типы платежей, net) на десяти крупнейших клиентах за последние 12 месяцев.
+    company_variants: []
+    tolerance: {mode: pp, lower: 2.0, upper: 5.0}
+    required_data:
+      invoices: [customer_id, service_period_start, service_period_end, amount, currency, payment_type, status, reseller_fee]
+      fx_rates: [month, currency, usd_rate]
+
+# Метрики вне онтологии: данных для расчёта в data room нет → вердикт NOT_ENOUGH_DATA.
+out_of_ontology:
+  - id: cac_payback
+    name_ru: Срок окупаемости CAC
+    missing_data: расходы на продажи и маркетинг
+  - id: ltv_to_cac
+    name_ru: LTV / CAC
+    missing_data: расходы на привлечение, маржинальность
+  - id: gross_margin
+    name_ru: Валовая маржа
+    missing_data: себестоимость (COGS)
+  - id: burn_multiple
+    name_ru: Burn multiple
+    missing_data: денежный поток (burn)

@@ -26,6 +26,8 @@ htmlcov/
 data/raw/
 data/processed/
 data/interim/
+data/external/
+data/synthetic/
 models/
 outputs/
 mlruns/
