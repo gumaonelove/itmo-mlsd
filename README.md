@@ -69,6 +69,7 @@ data room (инвойсы,     ─┘        (LLM)                  (LLM)       
 │   └── synth/                    # генератор синтетического data room (CLI: python -m dd_verifier.synth)
 ├── tests/                        # pytest: метрики на данных с известным ответом, инварианты генератора
 ├── scripts/                      # скачивание реальных данных: UCI Online Retail II, SEC EDGAR
+│   └── audit/                    # независимый пересчёт эталона dev вне библиотеки (pandas и SQL)
 ├── notebooks/                    # ноутбуки EDA (выводы очищаются при коммите)
 ├── reports/
 │   ├── eda/                      # отчёты EDA с выводами
